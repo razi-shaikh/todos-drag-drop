@@ -8,7 +8,11 @@ interface TaskColumnProps {
   title: string;
   tasks: Task[];
   columnId: "pending-tasks" | "done-tasks";
-  onTaskMove?: (taskId: string, from: string, to: string) => void;
+  onTaskMove?: (
+    taskId: string,
+    from: "pending-tasks" | "done-tasks",
+    to: "pending-tasks" | "done-tasks"
+  ) => void;
   onToggleComplete: (id: string) => void;
   onDeleteTask: (id: string) => void;
   onEditTask: (id: string) => void;
