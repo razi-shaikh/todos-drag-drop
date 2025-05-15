@@ -4,75 +4,84 @@ import { useState } from "react";
 import { PlusCircle, Clock, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AddTask, TaskColumn } from "@/components/todo";
+import { Task } from "@/components/todo/types";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 
-interface Task {
-  id: string;
-  title: string;
-  description?: string;
-  priority: "low" | "medium" | "high";
-  createdAt: string;
+const STORAGE_KEY = "todoAppData";
+
+interface TodoAppData {
+  pendingTasks: Task[];
+  doneTasks: Task[];
 }
 
 export default function TodoApp() {
-  const [pendingTasks, setPendingTasks] = useState<Task[]>([
-    {
-      id: "1",
-      title: "Learn Drag and Drop",
-      description: "Research and implement drag and drop functionality",
-      priority: "high",
-      createdAt: "2025-05-10T09:00:00.000Z",
-    },
-    {
-      id: "2",
-      title: "Build Todo App",
-      description: "Create UI with better components and user experience",
-      priority: "medium",
-      createdAt: "2025-05-12T14:30:00.000Z",
-    },
-  ]);
-
-  const [doneTasks, setDoneTasks] = useState<Task[]>([
-    {
-      id: "3",
-      title: "Setup project",
-      description: "Initialize Next.js app with TypeScript configuration",
-      priority: "low",
-      createdAt: "2025-05-08T11:15:00.000Z",
-    },
-  ]);
+  const [appData, setAppData] = useLocalStorage<TodoAppData>(STORAGE_KEY, {
+    pendingTasks: [
+      {
+        id: "1",
+        title: "Learn Drag and Drop",
+        description: "Research and implement drag and drop functionality",
+        priority: "high",
+        createdAt: "2025-05-10T09:00:00.000Z",
+      },
+      {
+        id: "2",
+        title: "Build Todo App",
+        description: "Create UI with better components and user experience",
+        priority: "medium",
+        createdAt: "2025-05-12T14:30:00.000Z",
+      },
+    ],
+    doneTasks: [
+      {
+        id: "3",
+        title: "Setup project",
+        description: "Initialize Next.js app with TypeScript configuration",
+        priority: "low",
+        createdAt: "2025-05-08T11:15:00.000Z",
+      },
+    ],
+  });
 
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [filter, setFilter] = useState<"all" | "high" | "medium" | "low">(
     "all"
   );
 
+  const { pendingTasks, doneTasks } = appData;
+
+  const updateAppData = (newData: Partial<TodoAppData>) => {
+    setAppData((prev) => ({ ...prev, ...newData }));
+  };
+
   const handleAddTask = (taskData: Task, isEditing: boolean) => {
     if (isEditing && taskData.id) {
-      setPendingTasks(
-        pendingTasks.map((task) =>
+      updateAppData({
+        pendingTasks: pendingTasks.map((task) =>
           task.id === taskData.id ? { ...task, ...taskData } : task
-        )
-      );
-
-      setDoneTasks(
-        doneTasks.map((task) =>
+        ),
+        doneTasks: doneTasks.map((task) =>
           task.id === taskData.id ? { ...task, ...taskData } : task
-        )
-      );
+        ),
+      });
     } else {
       const newTask = {
         ...taskData,
         id: Date.now().toString(),
       };
-      setPendingTasks([...pendingTasks, newTask]);
+      updateAppData({
+        pendingTasks: [...pendingTasks, newTask],
+      });
     }
 
     setEditingTask(null);
   };
 
   const handleDeleteTask = (taskId: string) => {
-    setPendingTasks(pendingTasks.filter((task) => task.id !== taskId));
-    setDoneTasks(doneTasks.filter((task) => task.id !== taskId));
+    updateAppData({
+      pendingTasks: pendingTasks.filter((task) => task.id !== taskId),
+      doneTasks: doneTasks.filter((task) => task.id !== taskId),
+    });
   };
 
   const handleEditTask = (taskId: string) => {
@@ -85,21 +94,30 @@ export default function TodoApp() {
     }
   };
 
-  const handleToggleComplete = (taskId: string) => {
-    const pendingTask = pendingTasks.find((task) => task.id === taskId);
+  const handleTaskMoved = (
+    taskId: string,
+    from: "pending-tasks" | "done-tasks",
+    to: "pending-tasks" | "done-tasks"
+  ) => {
+    const sourceTasks = from === "pending-tasks" ? pendingTasks : doneTasks;
+    const taskToMove = sourceTasks.find((task) => task.id === taskId);
 
-    if (pendingTask) {
-      setPendingTasks(pendingTasks.filter((task) => task.id !== taskId));
-      setDoneTasks([...doneTasks, pendingTask]);
+    if (!taskToMove) return;
+
+    if (from === "pending-tasks") {
+      updateAppData({
+        pendingTasks: pendingTasks.filter((task) => task.id !== taskId),
+        doneTasks: [...doneTasks, taskToMove],
+      });
     } else {
-      const doneTask = doneTasks.find((task) => task.id === taskId);
-      if (doneTask) {
-        setDoneTasks(doneTasks.filter((task) => task.id !== taskId));
-        setPendingTasks([...pendingTasks, doneTask]);
-      }
+      updateAppData({
+        doneTasks: doneTasks.filter((task) => task.id !== taskId),
+        pendingTasks: [...pendingTasks, taskToMove],
+      });
     }
   };
 
+  // Filter tasks based on priority
   const filteredPendingTasks = pendingTasks.filter(
     (task) => filter === "all" || task.priority === filter
   );
@@ -168,17 +186,19 @@ export default function TodoApp() {
           title="To Do"
           tasks={filteredPendingTasks}
           columnId="pending-tasks"
+          onTaskMoved={handleTaskMoved}
           onDeleteTask={handleDeleteTask}
           onEditTask={handleEditTask}
-          onToggleComplete={handleToggleComplete}
+          onToggleComplete={handleTaskMoved}
         />
         <TaskColumn
           title="Completed"
           tasks={filteredDoneTasks}
           columnId="done-tasks"
+          onTaskMoved={handleTaskMoved}
           onDeleteTask={handleDeleteTask}
           onEditTask={handleEditTask}
-          onToggleComplete={handleToggleComplete}
+          onToggleComplete={handleTaskMoved}
         />
       </div>
     </div>
