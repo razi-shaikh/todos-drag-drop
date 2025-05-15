@@ -1,4 +1,3 @@
-"use client";
 import { useState, useRef, useEffect } from "react";
 import { PlusCircle, Edit as EditIcon, X } from "lucide-react";
 import { Button } from "../ui/button";

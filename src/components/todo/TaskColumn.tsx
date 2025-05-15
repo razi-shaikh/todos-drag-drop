@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useRef } from "react";
 import dragula from "dragula";
 import { TaskCard } from "./TaskCard";
@@ -8,7 +10,7 @@ interface TaskColumnProps {
   title: string;
   tasks: Task[];
   columnId: "pending-tasks" | "done-tasks";
-  onTaskMoved: (taskId: string, from: string, to: string) => void;
+  onTaskMove?: (taskId: string, from: string, to: string) => void;
   onToggleComplete: (id: string) => void;
   onDeleteTask: (id: string) => void;
   onEditTask: (id: string) => void;
@@ -18,7 +20,7 @@ export const TaskColumn = ({
   title,
   tasks,
   columnId,
-  onTaskMoved,
+  onTaskMove,
   onToggleComplete,
   onDeleteTask,
   onEditTask,
@@ -26,7 +28,7 @@ export const TaskColumn = ({
   const columnRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!columnRef.current) return;
+    if (!columnRef.current || !onTaskMove) return;
 
     const drake = dragula([
       document.getElementById("pending-tasks")!,
@@ -39,12 +41,12 @@ export const TaskColumn = ({
       const to = target.id as "pending-tasks" | "done-tasks";
 
       if (from !== to) {
-        onTaskMoved(taskId, from, to);
+        onTaskMove(taskId, from, to);
       }
     });
 
     return () => drake.destroy();
-  }, [onTaskMoved]);
+  }, [onTaskMove]);
 
   return (
     <div className="flex-1 min-w-0">
@@ -52,7 +54,7 @@ export const TaskColumn = ({
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-bold text-lg flex items-center">
             {title}
-            <span className="ml-2 bg-gray-200 text-gray-700 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+            <span className="ml-2 inline-flex items-center rounded-full bg-gray-200 px-2.5 py-0.5 text-xs font-medium text-gray-700">
               {tasks.length}
             </span>
           </h2>

@@ -1,87 +1,107 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PlusCircle, Clock, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AddTask, TaskColumn } from "@/components/todo";
 import { Task } from "@/components/todo/types";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
-
-const STORAGE_KEY = "todoAppData";
-
-interface TodoAppData {
-  pendingTasks: Task[];
-  doneTasks: Task[];
-}
 
 export default function TodoApp() {
-  const [appData, setAppData] = useLocalStorage<TodoAppData>(STORAGE_KEY, {
-    pendingTasks: [
-      {
-        id: "1",
-        title: "Learn Drag and Drop",
-        description: "Research and implement drag and drop functionality",
-        priority: "high",
-        createdAt: "2025-05-10T09:00:00.000Z",
-      },
-      {
-        id: "2",
-        title: "Build Todo App",
-        description: "Create UI with better components and user experience",
-        priority: "medium",
-        createdAt: "2025-05-12T14:30:00.000Z",
-      },
-    ],
-    doneTasks: [
-      {
-        id: "3",
-        title: "Setup project",
-        description: "Initialize Next.js app with TypeScript configuration",
-        priority: "low",
-        createdAt: "2025-05-08T11:15:00.000Z",
-      },
-    ],
-  });
+  // Default tasks that will only be used if localStorage is empty
+  const defaultPendingTasks: Task[] = [
+    {
+      id: "1",
+      title: "Learn Drag and Drop",
+      description: "Research and implement drag and drop functionality",
+      priority: "high",
+      createdAt: "2025-05-10T09:00:00.000Z",
+    },
+    {
+      id: "2",
+      title: "Build Todo App",
+      description: "Create UI with better components and user experience",
+      priority: "medium",
+      createdAt: "2025-05-12T14:30:00.000Z",
+    },
+  ];
 
+  const defaultDoneTasks: Task[] = [
+    {
+      id: "3",
+      title: "Setup project",
+      description: "Initialize Next.js app with TypeScript configuration",
+      priority: "low",
+      createdAt: "2025-05-08T11:15:00.000Z",
+    },
+  ];
+
+  const [pendingTasks, setPendingTasks] = useState<Task[]>([]);
+  const [doneTasks, setDoneTasks] = useState<Task[]>([]);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [filter, setFilter] = useState<"all" | "high" | "medium" | "low">(
     "all"
   );
 
-  const { pendingTasks, doneTasks } = appData;
+  // Load tasks from localStorage on initial render
+  useEffect(() => {
+    // Check if we're in a browser environment (since localStorage isn't available during SSR)
+    if (typeof window !== "undefined") {
+      const storedPendingTasks = localStorage.getItem("pendingTasks");
+      const storedDoneTasks = localStorage.getItem("doneTasks");
 
-  const updateAppData = (newData: Partial<TodoAppData>) => {
-    setAppData((prev) => ({ ...prev, ...newData }));
-  };
+      if (storedPendingTasks) {
+        setPendingTasks(JSON.parse(storedPendingTasks));
+      } else {
+        // If no stored tasks, use default tasks
+        setPendingTasks(defaultPendingTasks);
+      }
+
+      if (storedDoneTasks) {
+        setDoneTasks(JSON.parse(storedDoneTasks));
+      } else {
+        // If no stored tasks, use default tasks
+        setDoneTasks(defaultDoneTasks);
+      }
+    }
+  }, []);
+
+  // Save tasks to localStorage whenever they change
+  useEffect(() => {
+    // Only save to localStorage if tasks have been initialized
+    // (prevents overwriting with empty arrays on first render)
+    if (pendingTasks.length > 0 || doneTasks.length > 0) {
+      localStorage.setItem("pendingTasks", JSON.stringify(pendingTasks));
+      localStorage.setItem("doneTasks", JSON.stringify(doneTasks));
+    }
+  }, [pendingTasks, doneTasks]);
 
   const handleAddTask = (taskData: Task, isEditing: boolean) => {
     if (isEditing && taskData.id) {
-      updateAppData({
-        pendingTasks: pendingTasks.map((task) =>
+      setPendingTasks(
+        pendingTasks.map((task) =>
           task.id === taskData.id ? { ...task, ...taskData } : task
-        ),
-        doneTasks: doneTasks.map((task) =>
+        )
+      );
+
+      setDoneTasks(
+        doneTasks.map((task) =>
           task.id === taskData.id ? { ...task, ...taskData } : task
-        ),
-      });
+        )
+      );
     } else {
       const newTask = {
         ...taskData,
         id: Date.now().toString(),
       };
-      updateAppData({
-        pendingTasks: [...pendingTasks, newTask],
-      });
+      setPendingTasks([...pendingTasks, newTask]);
     }
 
     setEditingTask(null);
   };
 
   const handleDeleteTask = (taskId: string) => {
-    updateAppData({
-      pendingTasks: pendingTasks.filter((task) => task.id !== taskId),
-      doneTasks: doneTasks.filter((task) => task.id !== taskId),
-    });
+    setPendingTasks(pendingTasks.filter((task) => task.id !== taskId));
+    setDoneTasks(doneTasks.filter((task) => task.id !== taskId));
   };
 
   const handleEditTask = (taskId: string) => {
@@ -94,26 +114,31 @@ export default function TodoApp() {
     }
   };
 
-  const handleTaskMoved = (
+  const handleTaskMove = (
     taskId: string,
     from: "pending-tasks" | "done-tasks",
     to: "pending-tasks" | "done-tasks"
   ) => {
+    if (from === to) return;
+
+    // Find the task in the source column
     const sourceTasks = from === "pending-tasks" ? pendingTasks : doneTasks;
     const taskToMove = sourceTasks.find((task) => task.id === taskId);
 
     if (!taskToMove) return;
 
+    // Remove from source column
     if (from === "pending-tasks") {
-      updateAppData({
-        pendingTasks: pendingTasks.filter((task) => task.id !== taskId),
-        doneTasks: [...doneTasks, taskToMove],
-      });
+      setPendingTasks(pendingTasks.filter((task) => task.id !== taskId));
     } else {
-      updateAppData({
-        doneTasks: doneTasks.filter((task) => task.id !== taskId),
-        pendingTasks: [...pendingTasks, taskToMove],
-      });
+      setDoneTasks(doneTasks.filter((task) => task.id !== taskId));
+    }
+
+    // Add to target column
+    if (to === "pending-tasks") {
+      setPendingTasks([...pendingTasks, taskToMove]);
+    } else {
+      setDoneTasks([...doneTasks, taskToMove]);
     }
   };
 
@@ -186,19 +211,19 @@ export default function TodoApp() {
           title="To Do"
           tasks={filteredPendingTasks}
           columnId="pending-tasks"
-          onTaskMoved={handleTaskMoved}
+          onTaskMove={handleTaskMove}
           onDeleteTask={handleDeleteTask}
           onEditTask={handleEditTask}
-          onToggleComplete={handleTaskMoved}
+          onToggleComplete={handleTaskMove} // Reusing handleTaskMove for toggle complete
         />
         <TaskColumn
           title="Completed"
           tasks={filteredDoneTasks}
           columnId="done-tasks"
-          onTaskMoved={handleTaskMoved}
+          onTaskMove={handleTaskMove}
           onDeleteTask={handleDeleteTask}
           onEditTask={handleEditTask}
-          onToggleComplete={handleTaskMoved}
+          onToggleComplete={handleTaskMove} // Reusing handleTaskMove for toggle complete
         />
       </div>
     </div>
