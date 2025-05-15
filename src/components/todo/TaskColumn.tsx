@@ -3,19 +3,26 @@
 import { useEffect, useRef } from "react";
 import dragula from "dragula";
 import { TaskCard } from "./TaskCard";
-import { Card } from "../ui/card";
-import { Task } from "./types";
+import { Task } from "@/types";
 
+// interface TaskColumnProps {
+//   title: string;
+//   tasks: Task[];
+//   columnId: "pending-tasks" | "done-tasks";
+//   onTaskMove?: (taskId: string, from: string, to: string) => void;
+//   onToggleComplete: (id: string) => void;
+//   onDeleteTask: (id: string) => void;
+//   onEditTask: (id: string) => void;
+// }
 interface TaskColumnProps {
   title: string;
   tasks: Task[];
   columnId: "pending-tasks" | "done-tasks";
-  onTaskMove?: (taskId: string, from: string, to: string) => void;
+  onTaskMove?: (taskId: string, from: "pending-tasks" | "done-tasks", to: "pending-tasks" | "done-tasks") => void;
   onToggleComplete: (id: string) => void;
   onDeleteTask: (id: string) => void;
   onEditTask: (id: string) => void;
 }
-
 export const TaskColumn = ({
   title,
   tasks,

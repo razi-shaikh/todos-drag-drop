@@ -1,20 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { PlusCircle, Clock, Calendar } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AddTask, TaskColumn } from "@/components/todo";
+import { Task } from "@/types";
 
-interface Task {
-  id: string;
-  title: string;
-  description?: string;
-  priority: "low" | "medium" | "high";
-  createdAt: string;
-}
+// Define TaskData type for add/edit operations
+type TaskData = Omit<Task, "id"> & { id?: string };
 
 export default function TodoApp() {
-  const [pendingTasks, setPendingTasks] = useState<Task[]>([
+  // Default tasks that will only be used if localStorage is empty
+  const defaultPendingTasks: Task[] = [
     {
       id: "1",
       title: "Learn Drag and Drop",
@@ -29,9 +26,9 @@ export default function TodoApp() {
       priority: "medium",
       createdAt: "2025-05-12T14:30:00.000Z",
     },
-  ]);
+  ];
 
-  const [doneTasks, setDoneTasks] = useState<Task[]>([
+  const defaultDoneTasks: Task[] = [
     {
       id: "3",
       title: "Setup project",
@@ -39,14 +36,49 @@ export default function TodoApp() {
       priority: "low",
       createdAt: "2025-05-08T11:15:00.000Z",
     },
-  ]);
+  ];
 
+  const [pendingTasks, setPendingTasks] = useState<Task[]>([]);
+  const [doneTasks, setDoneTasks] = useState<Task[]>([]);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [filter, setFilter] = useState<"all" | "high" | "medium" | "low">(
     "all"
   );
 
-  const handleAddTask = (taskData: Task, isEditing: boolean) => {
+  // Load tasks from localStorage on initial render
+  useEffect(() => {
+    // Check if we're in a browser environment (since localStorage isn't available during SSR)
+    if (typeof window !== "undefined") {
+      const storedPendingTasks = localStorage.getItem("pendingTasks");
+      const storedDoneTasks = localStorage.getItem("doneTasks");
+
+      if (storedPendingTasks) {
+        setPendingTasks(JSON.parse(storedPendingTasks));
+      } else {
+        // If no stored tasks, use default tasks
+        setPendingTasks(defaultPendingTasks);
+      }
+
+      if (storedDoneTasks) {
+        setDoneTasks(JSON.parse(storedDoneTasks));
+      } else {
+        // If no stored tasks, use default tasks
+        setDoneTasks(defaultDoneTasks);
+      }
+    }
+  }, []);
+
+  // Save tasks to localStorage whenever they change
+  useEffect(() => {
+    // Only save to localStorage if tasks have been initialized
+    // (prevents overwriting with empty arrays on first render)
+    if (pendingTasks.length > 0 || doneTasks.length > 0) {
+      localStorage.setItem("pendingTasks", JSON.stringify(pendingTasks));
+      localStorage.setItem("doneTasks", JSON.stringify(doneTasks));
+    }
+  }, [pendingTasks, doneTasks]);
+
+  const handleAddTask = (taskData: TaskData, isEditing: boolean) => {
     if (isEditing && taskData.id) {
       setPendingTasks(
         pendingTasks.map((task) =>
@@ -60,7 +92,7 @@ export default function TodoApp() {
         )
       );
     } else {
-      const newTask = {
+      const newTask: Task = {
         ...taskData,
         id: Date.now().toString(),
       };
@@ -85,21 +117,35 @@ export default function TodoApp() {
     }
   };
 
-  const handleToggleComplete = (taskId: string) => {
-    const pendingTask = pendingTasks.find((task) => task.id === taskId);
+  const handleTaskMove = (
+    taskId: string,
+    from: "pending-tasks" | "done-tasks",
+    to: "pending-tasks" | "done-tasks"
+  ) => {
+    if (from === to) return;
 
-    if (pendingTask) {
+    // Find the task in the source column
+    const sourceTasks = from === "pending-tasks" ? pendingTasks : doneTasks;
+    const taskToMove = sourceTasks.find((task) => task.id === taskId);
+
+    if (!taskToMove) return;
+
+    // Remove from source column
+    if (from === "pending-tasks") {
       setPendingTasks(pendingTasks.filter((task) => task.id !== taskId));
-      setDoneTasks([...doneTasks, pendingTask]);
     } else {
-      const doneTask = doneTasks.find((task) => task.id === taskId);
-      if (doneTask) {
-        setDoneTasks(doneTasks.filter((task) => task.id !== taskId));
-        setPendingTasks([...pendingTasks, doneTask]);
-      }
+      setDoneTasks(doneTasks.filter((task) => task.id !== taskId));
+    }
+
+    // Add to target column
+    if (to === "pending-tasks") {
+      setPendingTasks([...pendingTasks, taskToMove]);
+    } else {
+      setDoneTasks([...doneTasks, taskToMove]);
     }
   };
 
+  // Filter tasks based on priority
   const filteredPendingTasks = pendingTasks.filter(
     (task) => filter === "all" || task.priority === filter
   );
@@ -168,17 +214,23 @@ export default function TodoApp() {
           title="To Do"
           tasks={filteredPendingTasks}
           columnId="pending-tasks"
+          onTaskMove={handleTaskMove}
           onDeleteTask={handleDeleteTask}
           onEditTask={handleEditTask}
-          onToggleComplete={handleToggleComplete}
+          onToggleComplete={(id: string) =>
+            handleTaskMove(id, "pending-tasks", "done-tasks")
+          } // Move from pending to done
         />
         <TaskColumn
           title="Completed"
           tasks={filteredDoneTasks}
           columnId="done-tasks"
+          onTaskMove={handleTaskMove}
           onDeleteTask={handleDeleteTask}
           onEditTask={handleEditTask}
-          onToggleComplete={handleToggleComplete}
+          onToggleComplete={(id: string) =>
+            handleTaskMove(id, "done-tasks", "pending-tasks")
+          } // Move from done to pending
         />
       </div>
     </div>

@@ -34,10 +34,23 @@ export const TaskCard = ({
     high: "bg-red-100 text-red-800",
   };
 
-  const formattedDate = new Date(createdAt).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
+  function formatDisplayDate(isoString: any) {
+    const date = new Date(isoString);
+
+    const day = date.getDate().toString().padStart(2, "0");
+    const month = date.toLocaleString("en-US", { month: "long" });
+    const year = date.getFullYear();
+
+    let hours = date.getHours();
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+
+    const period = hours < 12 ? "AM" : "PM";
+    hours = hours % 12 || 12;
+    const hourStr = hours.toString().padStart(2, "0");
+
+    return `${day} ${month} ${year} - ${hourStr}:${minutes} ${period}`;
+  }
+  const formattedDate = formatDisplayDate(createdAt);
 
   const isCompleted = status === "done";
 
