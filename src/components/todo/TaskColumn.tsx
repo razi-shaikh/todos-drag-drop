@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import dragula from "dragula";
 import { TaskCard } from "./TaskCard";
 import { Task } from "@/types";
 
@@ -9,11 +8,12 @@ interface TaskColumnProps {
   title: string;
   tasks: Task[];
   columnId: "pending-tasks" | "done-tasks";
-  onTaskMove?: (taskId: string, from: "pending-tasks" | "done-tasks", to: "pending-tasks" | "done-tasks") => void;
+  onTaskMove?: (taskId: string, from: string, to: string) => void;
   onToggleComplete: (id: string) => void;
   onDeleteTask: (id: string) => void;
   onEditTask: (id: string) => void;
 }
+
 export const TaskColumn = ({
   title,
   tasks,
@@ -26,24 +26,42 @@ export const TaskColumn = ({
   const columnRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!columnRef.current || !onTaskMove) return;
+    // Only import and use dragula in the browser environment
+    if (typeof window === "undefined" || !columnRef.current || !onTaskMove)
+      return;
 
-    const drake = dragula([
-      document.getElementById("pending-tasks")!,
-      document.getElementById("done-tasks")!,
-    ]);
+    // Dynamic import for dragula to avoid SSR issues
+    const initDragula = async () => {
+      const dragula = (await import("dragula")).default;
 
-    drake.on("drop", (el, target, source) => {
-      const taskId = el.id;
-      const from = source.id as "pending-tasks" | "done-tasks";
-      const to = target.id as "pending-tasks" | "done-tasks";
+      const drake = dragula([
+        document.getElementById("pending-tasks")!,
+        document.getElementById("done-tasks")!,
+      ]);
 
-      if (from !== to) {
-        onTaskMove(taskId, from, to);
-      }
+      drake.on("drop", (el, target, source) => {
+        const taskId = el.id;
+        const from = source.id as "pending-tasks" | "done-tasks";
+        const to = target.id as "pending-tasks" | "done-tasks";
+
+        if (from !== to) {
+          onTaskMove(taskId, from, to);
+        }
+      });
+
+      return drake;
+    };
+
+    // Initialize dragula and store the instance
+    let drake: any;
+    initDragula().then((drakeInstance) => {
+      drake = drakeInstance;
     });
 
-    return () => drake.destroy();
+    // Clean up function
+    return () => {
+      if (drake) drake.destroy();
+    };
   }, [onTaskMove]);
 
   return (
