@@ -1,5 +1,19 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "dragula/dist/dragula.css";
+
+/* styles/globals.css */
+.gu-mirror {
+  position: fixed !important;
+  margin: 0 !important;
+  z-index: 9999;
+  opacity: 0.8;
+  transform: rotate(2deg);
+}
+
+.gu-transit {
+  opacity: 0.5;
+}
 
 @custom-variant dark (&:is(.dark *));
 

@@ -19,7 +19,7 @@ export const AddTask = ({ onAddTask }: AddTaskProps) => {
 
     if (title) {
       onAddTask(title, description);
-      if (titleRef.current) titleRef.current.value = "";
+      titleRef.current.value = "";
       if (descriptionRef.current) descriptionRef.current.value = "";
     }
   };
